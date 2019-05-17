@@ -40,7 +40,7 @@ class MQTTThread (threading.Thread):
 
 
 @cbpi.actor
-class MQTTActor(ActorBase):
+class MQTTActorJson(ActorBase):
     topic = Property.Text("Topic", configurable=True, default_value="", description="MQTT TOPIC")
     def on(self, power=100):
         self.api.cache["mqtt"].client.publish(self.topic, payload=json.dumps({"state": "on"}), qos=2, retain=True)
@@ -49,7 +49,7 @@ class MQTTActor(ActorBase):
         self.api.cache["mqtt"].client.publish(self.topic, payload=json.dumps({"state": "off"}), qos=2, retain=True)
 
 @cbpi.actor
-class GS_MQTT(ActorBase):
+class MQTTActorInt(ActorBase):
     topic = Property.Text("Topic", configurable=True, default_value="", description="MQTT TOPIC")
     def on(self, power=100):
         self.api.cache["mqtt"].client.publish(self.topic, payload=1, qos=2, retain=True)
@@ -111,7 +111,7 @@ class MQTT_SENSOR(SensorActive):
         self.sleep(5)
 
 @cbpi.sensor
-class MQTT2ACTOR(SensorActive):
+class MQTTListenerControlActor(SensorActive):
     a_topic = Property.Text("Topic", configurable=True, default_value="", description="MQTT TOPIC")
     b_payload = Property.Text("Payload Dictioanry", configurable=True, default_value="", description="Where to find msg in patload, leave blank for raw payload")
     c_unit = Property.Text("Unit", configurable=True, default_value="", description="Units to display")
@@ -218,5 +218,3 @@ def initMQTT(app):
                 pass
 
     cbpi.socketio.start_background_task(target=mqtt_reader, api=app)
-
-

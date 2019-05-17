@@ -2,13 +2,12 @@
 import paho.mqtt.client as mqtt
 from eventlet import Queue
 from modules import cbpi, app, ActorBase
-#gs
 
+#gs
 from modules.core.hardware import SensorActive, ActorBase
 from modules.core.props import Property
 import json
 import os, re, threading, time
-from modules.core.props import Property
 
 q = Queue()
 
@@ -39,6 +38,7 @@ class MQTTThread (threading.Thread):
         self.client.connect(str(self.server), int(self.port), 60)
         self.client.loop_forever()
 
+
 @cbpi.actor
 class MQTTActor(ActorBase):
     topic = Property.Text("Topic", configurable=True, default_value="", description="MQTT TOPIC")
@@ -47,15 +47,6 @@ class MQTTActor(ActorBase):
 
     def off(self):
         self.api.cache["mqtt"].client.publish(self.topic, payload=json.dumps({"state": "off"}), qos=2, retain=True)
-
-@cbpi.actor
-class ESPEasyMQTT(ActorBase):
-    topic = Property.Text("Topic", configurable=True, default_value="", description="MQTT TOPIC")
-    def on(self, power=100):
-        self.api.cache["mqtt"].client.publish(self.topic, payload=1, qos=2, retain=True)
-
-    def off(self):
-        self.api.cache["mqtt"].client.publish(self.topic, payload=0, qos=2, retain=True)
 
 @cbpi.actor
 class GS_MQTT(ActorBase):
@@ -120,10 +111,11 @@ class MQTT_SENSOR(SensorActive):
         self.sleep(5)
 
 @cbpi.sensor
-class GS_SENSOR(SensorActive):
+class MQTT2ACTOR(SensorActive):
     a_topic = Property.Text("Topic", configurable=True, default_value="", description="MQTT TOPIC")
     b_payload = Property.Text("Payload Dictioanry", configurable=True, default_value="", description="Where to find msg in patload, leave blank for raw payload")
     c_unit = Property.Text("Unit", configurable=True, default_value="", description="Units to display")
+    base = Property.Actor(label="Base Actor", description="Select the actor you would like to add a dependency to.")
 
     last_value = None
     def init(self):
@@ -141,11 +133,13 @@ class GS_SENSOR(SensorActive):
                 print "payload " + msg.payload
                 json_data = json.loads(msg.payload)
                 #print json_data
+                print json_data
                 val = json_data
                 if self.payload_text is not None:
                     for key in self.payload_text:
                         val = val.get(key, None)
                 #print val
+                print val
                 if isinstance(val, (int, float, basestring)):
                     q.put({"id": on_message.sensorid, "value": val})
             except Exception as e:
@@ -154,36 +148,27 @@ class GS_SENSOR(SensorActive):
         self.api.cache["mqtt"].client.subscribe(self.topic)
         self.api.cache["mqtt"].client.message_callback_add(self.topic, on_message)
 
-
     def get_value(self):
+        # Control base actor from MQTT.
+        if (self.last_value == 0) :
+                self.api.switch_actor_off(int(self.base))
+#                self.api.switch_actor_on(int(self.base), power=power)
+        elif (self.last_value == 1) :
+                self.api.switch_actor_on(int(self.base))
+#                self.api.switch_actor_on(int(self.base), power=power)
+#        else:
+#                self.api.switch_actor_off(int(self.base))
+
         return {"value": self.last_value, "unit": self.unit}
 
     def get_unit(self):
         return self.unit
-
-#GS
-def toggle_actor(actor):
-    for idx, value in cbpi.cache["actors"].iteritems():
-        if value.name.lower() == actor:
-
-            if value.state == 1:
-                cbpi.switch_actor_off(value.id)
-            else:
-                cbpi.switch_actor_on(value.id)
-#/GS
 
     def stop(self):
         self.api.cache["mqtt"].client.unsubscribe(self.topic)
         SensorActive.stop(self)
 
     def execute(self):
-
-#GS
-#cbpi.switch_actor_on(1)
-#:wq!'
-#self.api.switch_actor_on(1)
-#self.api.notify(headline="Powering of actor prevented", message="This is due to the current power state of it's dependency, %s" % (dependency_name), timeout=self.timeout, type="danger")
-
 
         '''
         Active sensor has to handle his own loop

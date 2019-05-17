@@ -115,7 +115,7 @@ class MQTT2ACTOR(SensorActive):
     a_topic = Property.Text("Topic", configurable=True, default_value="", description="MQTT TOPIC")
     b_payload = Property.Text("Payload Dictioanry", configurable=True, default_value="", description="Where to find msg in patload, leave blank for raw payload")
     c_unit = Property.Text("Unit", configurable=True, default_value="", description="Units to display")
-    base = Property.Actor(label="Base Actor", description="Select the actor you would like to add a dependency to.")
+    base = Property.Actor(label="Base Actor", description="Select the actor you would like to control from MQTT.")
 
     last_value = None
     def init(self):

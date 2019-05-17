@@ -218,10 +218,10 @@ class MQTTListenerControlStep(SensorActive):
     def get_value(self):
         # Control steo from MQTT.
         if (self.last_value == 0) :
-#                StepView.stop()
+                #StepView.stop()
 		print "stop"
         elif (self.last_value == 1) :
-#                StepView.start()
+                #StepView.start()
 		print "start"
 
         return {"value": self.last_value, "unit": self.unit}
@@ -281,14 +281,15 @@ class MQTTListenerKettleAuto(SensorActive):
 
     def get_value(self):
         # Control Kettle from MQTT.
-        if (self.last_value == 0) :
+        #if (self.last_value == 0) :
                 #Kettle2View().toggle(kettleid)
 		#Kettle2View().toggle(1)
-		print "toggle"
-        elif (self.last_value == 1) :
+	#	print "toggle"
+        #elif (self.last_value == 1) :
                 #Kettle2View().toggle(kettleid)
-		Kettle2View().toggle(1)
-		print "toggle"
+#		Kettle2View().toggle(1)
+#		print "toggle"
+	Kettle2View().toggle(1)	
 
         return {"value": self.last_value, "unit": self.unit}
 

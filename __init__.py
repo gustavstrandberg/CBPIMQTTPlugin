@@ -51,6 +51,17 @@ class MQTTActorJson(ActorBase):
         self.api.cache["mqtt"].client.publish(self.topic, payload=json.dumps({"state": "off"}), qos=2, retain=True)
 
 @cbpi.actor
+class MQTTControlObject(ActorBase):
+    #topic = Property.Text("Topic", configurable=True, default_value="cbpi/homebrewing/MQTT_USERNAME/commands", description="MQTT TOPIC")
+    topic = "cbpi/homebrewing/uuid/commands"
+    object = Property.Text("Object", configurable=True, default_value="", description="Data Object, e.g. pump")
+    def on(self, power=100):
+        self.api.cache["mqtt"].client.publish(self.topic, payload=json.dumps({self.object: "on"}), qos=2, retain=True)
+
+    def off(self):
+        self.api.cache["mqtt"].client.publish(self.topic, payload=json.dumps({self.object: "off"}), qos=2, retain=True)
+
+@cbpi.actor
 class MQTTActorInt(ActorBase):
     topic = Property.Text("Topic", configurable=True, default_value="", description="MQTT TOPIC")
     def on(self, power=100):
@@ -60,10 +71,18 @@ class MQTTActorInt(ActorBase):
         self.api.cache["mqtt"].client.publish(self.topic, payload=0, qos=2, retain=True)
 
 @cbpi.sensor
-class MQTT_SENSOR(SensorActive):
-    a_topic = Property.Text("Topic", configurable=True, default_value="", description="MQTT TOPIC")
-    b_payload = Property.Text("Payload Dictioanry", configurable=True, default_value="", description="Where to find msg in patload, leave blank for raw payload")
-    c_unit = Property.Text("Unit", configurable=True, default_value="", description="Units to display")
+class MQTTListenerControlObject(SensorActive):
+#    a_topic = Property.Text("Topic", configurable=True, default_value="", description="MQTT TOPIC")
+    a_topic = "cbpi/homebrewing/uuid/commands"
+    b_payload = Property.Text("Object payload", configurable=True, default_value="", description="Object in patload, e.g. pump, leave blank for raw payload")
+    base = Property.Actor(label="Base Actor", description="Select the actor you would like to control from MQTT.")
+
+#logfile
+    f= open("gs.log","w+")
+    f.write("test\n")
+    f.write(a_topic)
+    f.write("\n")    
+    f.close()
 
     last_value = None
     def init(self):
@@ -72,20 +91,23 @@ class MQTT_SENSOR(SensorActive):
             self.payload_text = None
         else:
             self.payload_text = self.b_payload.split('.')
-        self.unit = self.c_unit[0:3]
-
+#            self.payload_text = self.b_payload
         SensorActive.init(self)
         def on_message(client, userdata, msg):
-            
+
             try:
-                print "payload " + msg.payload        
-                json_data = json.loads(msg.payload)
+                print "payload " + msg.payload
+#                f.write("payload " + msg.payload\n) 
+		json_data = json.loads(msg.payload)
                 #print json_data
+#		f.write(json_data\n)
+                print json_data
                 val = json_data
                 if self.payload_text is not None:
                     for key in self.payload_text:
                         val = val.get(key, None)
                 #print val
+                print val
                 if isinstance(val, (int, float, basestring)):
                     q.put({"id": on_message.sensorid, "value": val})
             except Exception as e:
@@ -94,9 +116,17 @@ class MQTT_SENSOR(SensorActive):
         self.api.cache["mqtt"].client.subscribe(self.topic)
         self.api.cache["mqtt"].client.message_callback_add(self.topic, on_message)
 
+#
+#	f.close()
 
     def get_value(self):
-        return {"value": self.last_value, "unit": self.unit}
+        # Control base actor from MQTT.
+        if (self.last_value == "off") :
+                self.api.switch_actor_off(int(self.base))
+        elif (self.last_value == "on") :
+                self.api.switch_actor_on(int(self.base))
+
+        return {"value": self.last_value}
 
     def get_unit(self):
         return self.unit
@@ -106,10 +136,14 @@ class MQTT_SENSOR(SensorActive):
         SensorActive.stop(self)
 
     def execute(self):
+
         '''
         Active sensor has to handle his own loop
-        :return: 
+        :return:
         '''
+
+#	f.close()
+
         self.sleep(5)
 
 @cbpi.sensor
@@ -181,8 +215,8 @@ class MQTTListenerControlActor(SensorActive):
 @cbpi.sensor
 class MQTTListenerControlStep(SensorActive):
     a_topic = Property.Text("Topic", configurable=True, default_value="", description="MQTT TOPIC")
-    b_payload = Property.Text("Payload Dictioanry", configurable=True, default_value="", description="Where to find msg in patload, leave blank for raw payload")
-    c_unit = Property.Text("Unit", configurable=True, default_value="", description="Units to display")
+    b_payload = Property.Text("Object in payload", configurable=True, default_value="", description="Object in patload, e.g. pump, leave blank for raw payload")
+    #c_unit = Property.Text("Unit", configurable=True, default_value="", description="Units to display")
     
     last_value = None
     def init(self):
@@ -191,7 +225,7 @@ class MQTTListenerControlStep(SensorActive):
             self.payload_text = None
         else:
             self.payload_text = self.b_payload.split('.')
-        self.unit = self.c_unit[0:3]
+        #self.unit = self.c_unit[0:3]
 
         SensorActive.init(self)
         def on_message(client, userdata, msg):
@@ -224,10 +258,11 @@ class MQTTListenerControlStep(SensorActive):
                 #StepView.start()
 		print "start"
 
-        return {"value": self.last_value, "unit": self.unit}
+#        return {"value": self.last_value, "unit": self.unit}
+        return {"value": self.last_value}
 
-    def get_unit(self):
-        return self.unit
+#    def get_unit(self):
+#        return self.unit
 
     def stop(self):
         self.api.cache["mqtt"].client.unsubscribe(self.topic)
